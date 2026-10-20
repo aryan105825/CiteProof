@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "git_commit": "91171beac7af1329f80de1ca08d70dfbf39e32ee",
+    "python": "3.12.13",
+    "date_utc": "2026-10-20T06:29:51+00:00",
+    "n": 108,
+    "cache": false,
+    "http_requests": 227
+  },
+  "baseline_weak": {
+    "precision": 0.09523809523809523,
+    "recall": 0.3333333333333333,
+    "fpr": 0.18627450980392157,
+    "f1": 0.14814814814814814,
+    "recall_by_mutation": {
+      "corrupted": 0.3333333333333333
+    },
+    "recall_corrupted": 0.3333333333333333,
+    "recall_fabricated": null
+  },
+  "baseline_strong": {
+    "precision": 0.08695652173913043,
+    "recall": 0.3333333333333333,
+    "fpr": 0.20588235294117646,
+    "f1": 0.13793103448275862,
+    "recall_by_mutation": {
+      "corrupted": 0.3333333333333333
+    },
+    "recall_corrupted": 0.3333333333333333,
+    "recall_fabricated": null
+  },
+  "evidence": {
+    "precision": 0.1935483870967742,
+    "recall": 1.0,
+    "fpr": 0.24509803921568626,
+    "f1": 0.3243243243243243,
+    "recall_by_mutation": {
+      "corrupted": 1.0
+    },
+    "recall_corrupted": 1.0,
+    "recall_fabricated": null,
+    "confusion3": {
+      "valid": {
+        "VERIFIED": 77,
+        "MISMATCH": 25,
+        "NOT_FOUND": 0
+      },
+      "corrupted": {
+        "VERIFIED": 0,
+        "MISMATCH": 6,
+        "NOT_FOUND": 0
+      },
+      "fabricated": {
+        "VERIFIED": 0,
+        "MISMATCH": 0,
+        "NOT_FOUND": 0
+      }
+    }
+  },
+  "latency_ms": {
+    "p50": 2023,
+    "p95": 4202
+  }
+}

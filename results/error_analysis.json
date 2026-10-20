@@ -1,0 +1,73 @@
+{
+  "n_errors_total": 48,
+  "cases": [
+    {
+      "source": "wild",
+      "id": "gmf-001",
+      "truth_label": "valid",
+      "mutation": null,
+      "raw": "Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, L., & Polosukhin, I. (2017). Attention is all you need. arXiv preprint arXiv:1706.03762. https://doi.org/10.48550/arXiv.1706.03762",
+      "verdict": "MISMATCH",
+      "reasons": [
+        "YEAR_CONFLICT"
+      ],
+      "best_title": "Attention Is All You Need",
+      "best_doi": "10.65215/2q58a426"
+    },
+    {
+      "source": "wild",
+      "id": "gmf-002",
+      "truth_label": "valid",
+      "mutation": null,
+      "raw": "Devlin, J., Chang, M. W., Lee, K., & Toutanova, K. (2018). BERT: Pre-training of deep bidirectional transformers for language understanding. arXiv preprint arXiv:1810.04805. https://doi.org/10.48550/arXiv.1810.04805",
+      "verdict": "MISMATCH",
+      "reasons": [
+        "DOI_POINTS_ELSEWHERE"
+      ],
+      "best_title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "best_doi": "10.18653/v1/n19-1423"
+    },
+    {
+      "source": "wild",
+      "id": "gmf-008",
+      "truth_label": "valid",
+      "mutation": null,
+      "raw": "Tikkinen-Piri, C., Rohunen, A., & Markkula, J. (2018). EU General Data Protection Regulation: Changes and implications for personal data collecting companies. Computer Law & Security Review, 34(1), 134-153. https://doi.org/10.1016/j.clsr.2017.05.005",
+      "verdict": "MISMATCH",
+      "reasons": [
+        "DOI_POINTS_ELSEWHERE"
+      ],
+      "best_title": "EU General Data Protection Regulation: Changes and implications for personal data collecting companies",
+      "best_doi": "10.1016/j.clsr.2017.05.015"
+    },
+    {
+      "source": "wild",
+      "id": "gmf-009",
+      "truth_label": "valid",
+      "mutation": null,
+      "raw": "Zarsky, T. Z. (2017). Incompatible: The GDPR in the age of big data. Seton Hall Law Review, 47(4), 995-1020.",
+      "verdict": "MISMATCH",
+      "reasons": [
+        "TITLE_NOT_IN_RECORD",
+        "YEAR_CONFLICT",
+        "UNEXPLAINED_TEXT"
+      ],
+      "best_title": "Correlation versus Causation in Health-Related Big Data Analysis",
+      "best_doi": "10.1017/9781108147972.005"
+    },
+    {
+      "source": "wild",
+      "id": "gmf-016",
+      "truth_label": "valid",
+      "mutation": null,
+      "raw": "Hopkins, K. (1978). Conquerors and slaves. Cambridge University Press.",
+      "verdict": "MISMATCH",
+      "reasons": [
+        "TITLE_NOT_IN_RECORD",
+        "UNEXPLAINED_TEXT"
+      ],
+      "best_title": "Henry W. West. Land Policy in Buganda. Cambridge: Cambridge University Press, 1972. xiv + 244 pp. Bibliography, index, maps, tables. $19.50",
+      "best_doi": "10.1017/s0364168600052038"
+    }
+  ]
+}

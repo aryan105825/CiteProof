@@ -1,3 +1,4 @@
+import os
 # @exports: family_name(display_name: str) -> str | None
 # @exports: parse_item(item: dict) -> Candidate | None
 # @exports: search(raw_ref: str, cfg: Config, per_page: int = 5) -> tuple[list[Candidate], int]
@@ -86,6 +87,8 @@ def search(raw_ref: str, cfg: Config, per_page: int = 5) -> tuple[list[Candidate
     if query == "":
         raise ValueError("openalex.search was given an empty reference string. Pass the reference text.")
     params = {"search": query, "per_page": str(per_page), "select": _SELECT, "mailto": cfg.mailto}
+    if os.environ.get("OPENALEX_API_KEY"):
+        params["api_key"] = os.environ["OPENALEX_API_KEY"]
     data, made = get_json(f"{cfg.openalex_base}/works", params, cfg)
     if data is None:
         raise HttpError(f"OpenAlex search returned HTTP 404 for {cfg.openalex_base}/works. Check that openalex_base is correct.")
@@ -95,7 +98,10 @@ def search(raw_ref: str, cfg: Config, per_page: int = 5) -> tuple[list[Candidate
 
 def lookup_doi(doi: str, cfg: Config) -> tuple[Candidate | None, int]:
     url = f"{cfg.openalex_base}/works/https://doi.org/{quote(doi, safe='/')}"
-    data, made = get_json(url, {"select": _SELECT, "mailto": cfg.mailto}, cfg)
+    params = {"select": _SELECT, "mailto": cfg.mailto}
+    if os.environ.get("OPENALEX_API_KEY"):
+        params["api_key"] = os.environ["OPENALEX_API_KEY"]
+    data, made = get_json(url, params, cfg)
     if data is None:
         return None, made
     cand = parse_item(data)

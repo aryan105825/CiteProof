@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "git_commit": "91171beac7af1329f80de1ca08d70dfbf39e32ee",
+    "python": "3.12.13",
+    "date_utc": "2026-10-20T06:29:51+00:00",
+    "n": 200,
+    "cache": false,
+    "http_requests": 224
+  },
+  "baseline_weak": {
+    "precision": 1.0,
+    "recall": 0.175,
+    "fpr": 0.0,
+    "f1": 0.2978723404255319,
+    "recall_by_mutation": {
+      "splice_fabricate": 0.225,
+      "swap_authors": 0.0,
+      "swap_title": 0.55,
+      "swap_venue": 0.05,
+      "swap_year": 0.0
+    },
+    "recall_corrupted": 0.15,
+    "recall_fabricated": 0.225
+  },
+  "baseline_strong": {
+    "precision": 1.0,
+    "recall": 0.675,
+    "fpr": 0.0,
+    "f1": 0.8059701492537313,
+    "recall_by_mutation": {
+      "splice_fabricate": 1.0,
+      "swap_authors": 1.0,
+      "swap_title": 1.0,
+      "swap_venue": 0.05,
+      "swap_year": 0.0
+    },
+    "recall_corrupted": 0.5125,
+    "recall_fabricated": 1.0
+  },
+  "evidence": {
+    "precision": 0.9292035398230089,
+    "recall": 0.875,
+    "fpr": 0.1,
+    "f1": 0.9012875536480688,
+    "recall_by_mutation": {
+      "splice_fabricate": 1.0,
+      "swap_authors": 1.0,
+      "swap_title": 1.0,
+      "swap_venue": 0.3,
+      "swap_year": 0.95
+    },
+    "recall_corrupted": 0.8125,
+    "recall_fabricated": 1.0,
+    "confusion3": {
+      "valid": {
+        "VERIFIED": 72,
+        "MISMATCH": 8,
+        "NOT_FOUND": 0
+      },
+      "corrupted": {
+        "VERIFIED": 15,
+        "MISMATCH": 65,
+        "NOT_FOUND": 0
+      },
+      "fabricated": {
+        "VERIFIED": 0,
+        "MISMATCH": 39,
+        "NOT_FOUND": 1
+      }
+    }
+  },
+  "latency_ms": {
+    "p50": 1018,
+    "p95": 2208
+  }
+}

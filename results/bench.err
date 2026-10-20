@@ -1,0 +1,12 @@
+gathered 50/508
+gathered 100/508
+gathered 150/508
+gathered 200/508
+gathered 250/508
+gathered 300/508
+gathered 350/508
+gathered 400/508
+gathered 450/508
+gathered 500/508
+gathered 508/508
+WARN: no evidence setting reaches FPR <= 0.05 on train; wrote the lowest-FPR setting.

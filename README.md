@@ -88,6 +88,13 @@ Rows are appended with `label` and `evidence_url` empty on purpose. Look each re
 
 The table below is pasted from `results/summary.md` after a full `verify.sh` run, so every number comes from `results/*.json`.
 
+| Set | Precision | Recall | FPR | F1 |
+|---|---|---|---|---|
+| Synthetic test | 0.929 | 0.875 | 0.100 | 0.901 |
+| Wild (hand-labelled) | 0.194 | 1.000 | 0.245 | 0.324 |
+
+Wild bad-reference fraction: 0.056 (n=108); second-labeller kappa 1.000 (n=30).
+
 ## Limits
 
 - English only; single-column PDFs only.
