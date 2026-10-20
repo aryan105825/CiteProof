@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<!-- @exports: static page served at GET / -->
+<!-- @imports: POST /api/check (JSON, compare=true), POST /api/check-file (multipart, compare=true) -->
+<!-- @env: none -->
+<!-- @schema: reads {"weak","strong","evidence"} report_dicts; items[].{ref_id,raw,label,reasons,confidence,best,evidence,suggested}; the checker control switches between the three reports without refetching; field marks are drawn client-side from best + evidence -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CiteProof: reference audit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231c1b18'/%3E%3Cpath d='M8 17l5 5 11-12' fill='none' stroke='%23f5f1e8' stroke-width='3.5'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --paper: #f5f1e8; --paper-2: #ece6d8; --ink: #1c1b18; --ink-2: #57544b; --rule: #d6cfbf;
+    --ok: #2c6a4a; --bad: #b3261e; --warn: #965800; --margin: #d98b82;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #15140f; --paper-2: #1e1c16; --ink: #ece7da; --ink-2: #a9a394; --rule: #35322a;
+      --ok: #6fcf97; --bad: #ff8a7f; --warn: #f0b35a; --margin: #6e3b36;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 var(--sans); }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  .masthead { border-bottom: 1px solid var(--rule); }
+  .masthead .wrap { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-top: 14px; padding-bottom: 12px; flex-wrap: wrap; }
+  .wordmark { font: 700 1.25rem var(--serif); letter-spacing: .01em; }
+  .kicker { font: .72rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+
+  .intro { padding: 44px 0 26px; }
+  h1 { font: 700 clamp(1.9rem, 5vw, 2.8rem)/1.12 var(--serif); letter-spacing: -.01em; margin: 0 0 14px; max-width: 18em; text-wrap: balance; }
+  .lede { margin: 0; max-width: 40em; color: var(--ink-2); font-size: 1.05rem; }
+
+  .sheet { border: 1px solid var(--ink); background: var(--paper); position: relative; }
+  .sheet.drag { background: var(--paper-2); }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--ink); font: .72rem var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  textarea { display: block; width: 100%; min-height: 188px; resize: vertical; border: 0; background:
+      linear-gradient(to right, transparent 46px, var(--margin) 46px, var(--margin) 47px, transparent 47px),
+      repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--rule) 27px, var(--rule) 28px);
+    background-attachment: local; color: var(--ink); font: 14px/28px var(--mono); padding: 0 16px 0 62px; }
+  textarea::placeholder { color: var(--ink-2); opacity: .8; }
+  textarea:disabled { opacity: .5; }
+  .sheet-foot { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--ink); }
+  .linklike { background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--ink-2); }
+  .linklike:hover { text-decoration-color: var(--ink); }
+  .sep { color: var(--ink-2); }
+  .chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--ink); padding: 1px 8px; font: .8rem var(--mono); }
+  .chip button { border: 0; background: none; padding: 0 2px; line-height: 1; }
+  .chip[hidden] { display: none; }
+  .spacer { flex: 1; }
+  .hint { font: .72rem var(--mono); color: var(--ink-2); }
+  .run { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); padding: 9px 20px; font-weight: 600; letter-spacing: .02em; }
+  .run:hover { opacity: .88; }
+  .run:disabled { opacity: .5; cursor: progress; }
+  #error { margin: 14px 0 0; color: var(--bad); border-left: 3px solid var(--bad); padding: 6px 12px; white-space: pre-wrap; }
+  #error:empty { display: none; }
+
+  #results { margin-top: 40px; }
+  .lensbar { position: sticky; top: 0; z-index: 5; background: var(--paper); border-bottom: 1px solid var(--ink); padding: 10px 0 0; }
+  .lens { display: flex; flex-wrap: wrap; gap: 0 22px; }
+  .lens button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 6px 0 8px; font-weight: 600; color: var(--ink-2); }
+  .lens button[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+  .lens-note { margin: 0; padding: 8px 0 10px; font-size: .9rem; color: var(--ink-2); min-height: 2.4em; }
+
+  .ledger { padding: 22px 0 8px; }
+  .bar { display: flex; height: 10px; border: 1px solid var(--ink); }
+  .seg.verified { background: var(--ok); } .seg.mismatch { background: var(--bad); } .seg.not_found { background: var(--warn); }
+  .counts { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 10px; font: .8rem var(--mono); }
+  .counts b { font-weight: 700; }
+  .missed { margin: 14px 0 0; padding: 10px 14px; border: 1px solid var(--bad); color: var(--bad); font-weight: 600; }
+  .meta { margin-top: 10px; font: .72rem var(--mono); color: var(--ink-2); }
+
+  .entry { display: grid; grid-template-columns: 56px 1fr; gap: 0 14px; padding: 26px 0; border-top: 1px solid var(--rule); }
+  .entry:first-child { border-top: 0; }
+  .num { font: 700 2rem/1 var(--serif); color: var(--ink-2); opacity: .6; }
+  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 10px; }
+  .stamp { font: 700 .78rem var(--mono); letter-spacing: .14em; text-transform: uppercase; border: 2px solid currentColor; padding: 2px 9px; }
+  .stamp.verified { color: var(--ok); } .stamp.mismatch { color: var(--bad); } .stamp.not_found { color: var(--warn); }
+  .verdict { color: var(--ink-2); font-size: .95rem; }
+  .raw { margin: 0 0 12px; font: 1.12rem/1.65 var(--serif); overflow-wrap: anywhere; }
+  .mk.ok { text-decoration: underline; text-decoration-color: var(--ok); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  .mk.bad { text-decoration: line-through; text-decoration-color: var(--bad); text-decoration-thickness: 2px; color: var(--bad); }
+  .mk.warn { text-decoration: underline wavy var(--warn); text-underline-offset: 4px; }
+  .fix { font: .72em var(--mono); color: var(--bad); margin-left: 3px; vertical-align: super; white-space: nowrap; }
+  .callout { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--bad); background: var(--paper-2); font-size: .92rem; }
+  .callout b { color: var(--bad); }
+  .why { margin: 0 0 12px; padding: 0; list-style: none; font-size: .93rem; }
+  .why li { padding: 1px 0; }
+  .why code { font: .72rem var(--mono); color: var(--ink-2); margin-left: 6px; }
+  .fields { display: grid; grid-template-columns: max-content 1fr; gap: 3px 16px; margin: 0 0 14px; font: .8rem var(--mono); }
+  .fields dt { color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+  .fields dd { margin: 0; }
+  .fields dd::before { margin-right: 8px; font-weight: 700; }
+  .fields dd.ok::before { content: "\2713"; color: var(--ok); }
+  .fields dd.bad { color: var(--bad); }
+  .fields dd.bad::before { content: "\2715"; }
+  .record { font-size: .92rem; color: var(--ink-2); margin: 0 0 12px; }
+  .record strong { color: var(--ink); font-family: var(--serif); font-weight: 600; }
+  .record a { color: var(--ink); text-underline-offset: 3px; }
+  .fixbox { border: 1px dashed var(--ink-2); padding: 10px 12px; }
+  .fixbox .label { font: .68rem var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+  .fixbox p { margin: 4px 0 8px; font: .9rem/1.5 var(--serif); overflow-wrap: anywhere; }
+  .copy { background: none; border: 1px solid var(--ink); padding: 3px 12px; font-size: .82rem; font-weight: 600; }
+  .copy:hover { background: var(--ink); color: var(--paper); }
+
+  .skeleton { height: 14px; margin: 14px 0; background: linear-gradient(90deg, var(--rule), var(--paper-2), var(--rule)); background-size: 200% 100%; animation: sheen 1.4s linear infinite; }
+  @keyframes sheen { to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+  .method { margin: 56px 0 0; border-top: 1px solid var(--ink); padding-top: 14px; }
+  .method summary { cursor: pointer; font-weight: 600; }
+  .method p, .method li { color: var(--ink-2); font-size: .94rem; max-width: 46em; }
+  footer { margin: 40px 0 56px; font: .75rem var(--mono); color: var(--ink-2); }
+
+  @media (max-width: 560px) {
+    .entry { grid-template-columns: 1fr; }
+    .num { font-size: 1.3rem; margin-bottom: 4px; }
+    .sheet-foot .spacer { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <span class="wordmark">CiteProof</span>
+    <span class="kicker">Reference audit &middot; Crossref + OpenAlex &middot; no LLM</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>A citation is real only if one record explains every field.</h1>
+    <p class="lede">Chatbots invent references that look right: a real journal with a made-up title, a real title with the wrong year. Paste a reference list or upload a PDF, and each entry is checked live against Crossref and OpenAlex.</p>
+  </section>
+
+  <section class="sheet" id="sheet" aria-label="Input">
+    <div class="sheet-head"><span>Manuscript</span><span id="count"></span></div>
+    <textarea id="input" spellcheck="false" placeholder="Paste one reference, or a whole reference list. You can also drop a PDF here."></textarea>
+    <div class="sheet-foot">
+      <span>Try</span>
+      <button type="button" class="linklike" data-ex="0">a genuine reference</button><span class="sep">/</span>
+      <button type="button" class="linklike" data-ex="1">wrong year and venue</button><span class="sep">/</span>
+      <button type="button" class="linklike" data-ex="2">a borrowed DOI</button>
+    </div>
+    <div class="sheet-foot">
+      <input type="file" id="file" accept=".pdf,.txt,.md" hidden>
+      <button type="button" class="linklike" id="pick">Upload PDF, .txt or .md</button>
+      <span id="chip" class="chip" hidden><span id="chipname"></span><button type="button" id="unpick" aria-label="Remove file">&times;</button></span>
+      <span class="spacer"></span>
+      <span class="hint">Ctrl/&#8984; + Enter</span>
+      <button type="button" class="run" id="run">Audit references</button>
+    </div>
+  </section>
+  <div id="error" role="alert"></div>
+
+  <section id="results" hidden aria-live="polite">
+    <div class="lensbar" id="lensbar" hidden>
+      <div class="lens" id="lens" role="group" aria-label="Checker"></div>
+      <p class="lens-note" id="lensnote"></p>
+    </div>
+    <div id="ledger"></div>
+    <div id="entries"></div>
+  </section>
+
+  <details class="method">
+    <summary>How a verdict is made</summary>
+    <p>Each reference is searched in Crossref (OpenAlex as fallback). The closest record is chosen by field evidence, not by search rank. A reference is <b>verified</b> only when that one record explains its title, its first author, its year and any DOI it cites, and leaves almost no text unexplained.</p>
+    <ul>
+      <li><b>Mismatch:</b> a real record exists, but some fields do not belong to it. The page marks the offending field and offers a corrected reference built from the record.</li>
+      <li><b>Not found:</b> nothing in the indexes is close enough on title or authors.</li>
+      <li>The two simpler checkers on this page ask only whether a title exists, with or without the first author. They are the baselines CiteProof is measured against.</li>
+    </ul>
+    <p>Limits: English only, single-column PDFs, and coverage is bounded by Crossref and OpenAlex. Books and grey literature are often not indexed, so a not-found verdict means &ldquo;check by hand&rdquo;, not &ldquo;fake&rdquo;.</p>
+  </details>
+</main>
+<footer class="wrap">Deterministic and explainable. We detect inconsistent citations, not AI-written text.</footer>
+
+<script>
+"use strict";
+const EXAMPLES = [
+  "LeCun, Y., Bengio, Y., & Hinton, G. (2015). Deep learning. Nature, 521, 436-444. https://doi.org/10.1038/nature14539",
+  "LeCun, Bengio, Hinton. Deep learning. Science 521, 436-444 (2011)",
+  "LeCun, Y., Bengio, Y., & Hinton, G. (2015). Deep learning. Nature, 521, 436-444. https://doi.org/10.1145/3065386",
+];
+const LENSES = [
+  { key: "weak", label: "Existence only", note: "Asks one question: does a paper with this title exist?" },
+  { key: "strong", label: "Existence + first author", note: "Adds one check: is the first author named in the reference?" },
+  { key: "evidence", label: "CiteProof", note: "Requires one record to explain the title, authors, year, DOI and every leftover word." },
+];
+const REASONS = {
+  TITLE_MATCH: "The title is in the closest record.",
+  AUTHORS_MATCH: "The authors are in the closest record.",
+  YEAR_MATCH: "The year agrees with the record.",
+  TITLE_NOT_IN_RECORD: "The title does not appear in the closest record.",
+  AUTHOR_MISMATCH: "The authors do not match the closest record.",
+  YEAR_CONFLICT: "The year disagrees with the record, or is missing.",
+  UNEXPLAINED_TEXT: "Part of the reference is explained by no field of the record.",
+  DOI_POINTS_ELSEWHERE: "The DOI belongs to a different paper.",
+  DOI_UNRESOLVED: "The DOI does not resolve to any record.",
+  NO_CANDIDATE: "No candidate record was returned.",
+  WEAK_CANDIDATE: "Nothing in the indexes is close enough.",
+};
+const VERDICT = {
+  VERIFIED: "One record explains every field.",
+  MISMATCH: "A real paper, but these details do not all belong to it.",
+  NOT_FOUND: "No record in Crossref or OpenAlex matches.",
+};
+
+const $ = (id) => document.getElementById(id);
+const state = { reports: null, lens: "evidence", file: null };
+
+function h(tag, props, ...kids) {
+  const n = document.createElement(tag);
+  if (props) {
+    for (const [k, v] of Object.entries(props)) {
+      if (v === false || v == null) continue;
+      if (k === "class") n.className = v;
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? "" : v);
+    }
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid == null || kid === false) continue;
+    n.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return n;
+}
+const setError = (m) => { $("error").textContent = m || ""; };
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/* Mark the fields of the raw reference that the record confirms or contradicts. */
+function annotate(raw, item) {
+  const best = item.best, ev = item.evidence;
+  if (!best) return document.createTextNode(raw);
+  const ranges = [];
+  const push = (start, end, cls, fix) => {
+    if (!ranges.some((r) => start < r.end && end > r.start)) ranges.push({ start, end, cls, fix });
+  };
+
+  const dm = /10\.\d{4,9}\/[^\s"<>]+/.exec(raw);
+  if (dm) {
+    const text = dm[0].replace(/[.,;)\]]+$/, "");
+    if (best.doi && text.toLowerCase() === best.doi) push(dm.index, dm.index + text.length, "ok");
+    else if (ev && (ev.doi_status === "points_elsewhere" || ev.doi_status === "unresolved"))
+      push(dm.index, dm.index + text.length, "bad", best.doi ? "\u2192 " + best.doi : null);
+  }
+
+  if (best.year != null) {
+    const yr = /(?<!\d)(?:19|20)\d{2}(?!\d)/g;
+    let m;
+    while ((m = yr.exec(raw))) {
+      const before = raw[m.index - 1], after = raw[m.index + 4];
+      if (before === "-" || before === "\u2013" || after === "-" || after === "\u2013") continue;
+      if (+m[0] === best.year) push(m.index, m.index + 4, "ok");
+      else if (ev && ev.year_status === "conflict") push(m.index, m.index + 4, "bad", "\u2192 " + best.year);
+      else if (ev && ev.year_status === "off_by_1") push(m.index, m.index + 4, "warn", "\u2192 " + best.year);
+    }
+  }
+
+  for (const name of best.authors.slice(0, 6)) {
+    const m = new RegExp("(?<![\\p{L}\\p{N}])" + esc(name) + "(?![\\p{L}\\p{N}])", "iu").exec(raw);
+    if (m) push(m.index, m.index + m[0].length, "ok");
+  }
+  for (const field of [best.title, best.venue]) {
+    const toks = field ? field.match(/[\p{L}\p{N}]+/gu) : null;
+    if (!toks) continue;
+    const m = new RegExp(toks.map(esc).join("[^\\p{L}\\p{N}]+"), "iu").exec(raw);
+    if (m) push(m.index, m.index + m[0].length, "ok");
+  }
+
+  ranges.sort((a, b) => a.start - b.start);
+  const frag = document.createDocumentFragment();
+  let at = 0;
+  for (const r of ranges) {
+    if (r.start > at) frag.append(raw.slice(at, r.start));
+    frag.append(h("span", { class: "mk " + r.cls }, raw.slice(r.start, r.end)));
+    if (r.fix) frag.append(h("span", { class: "fix" }, r.fix));
+    at = r.end;
+  }
+  if (at < raw.length) frag.append(raw.slice(at));
+  return frag;
+}
+
+function fieldGrid(item) {
+  const ev = item.evidence;
+  if (!ev) return null;
+  const r = new Set(item.reasons), nf = item.label === "NOT_FOUND";
+  const YEAR = { match: "agrees with the record", off_by_1: "within a year of the record", conflict: "disagrees with the record", absent: "not stated" };
+  const DOI = { none: "none cited", match: "resolves to this record", points_elsewhere: "belongs to a different paper", unresolved: "does not resolve" };
+  const rows = [
+    ["Title", `${Math.round(ev.title_sim)}% of the record\u2019s title found`, nf || r.has("TITLE_NOT_IN_RECORD")],
+    ["Authors", ev.first_author_found ? `first author found, ${Math.round(ev.authors_found_frac * 100)}% of authors` : "first author missing", nf || r.has("AUTHOR_MISMATCH")],
+    ["Year", YEAR[ev.year_status], r.has("YEAR_CONFLICT")],
+    ["DOI", DOI[ev.doi_status], r.has("DOI_POINTS_ELSEWHERE") || r.has("DOI_UNRESOLVED")],
+    ["Leftover", `${Math.round(ev.residual_frac * 100)}% of the text unexplained`, r.has("UNEXPLAINED_TEXT")],
+  ];
+  return h("dl", { class: "fields" }, rows.map(([k, v, bad]) => [h("dt", null, k), h("dd", { class: bad ? "bad" : "ok" }, v)]));
+}
+
+function describe(c) {
+  const names = c.authors.slice(0, 3).join(", ") + (c.authors.length > 3 ? " et al." : "");
+  return [names + (names ? " " : "") + `(${c.year == null ? "n.d." : c.year}). `, h("strong", null, c.title), `. ${c.venue || ""}`];
+}
+
+function copyButton(text) {
+  const btn = h("button", { type: "button", class: "copy" }, "Copy corrected reference");
+  btn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = "Copied";
+      setTimeout(() => { btn.textContent = "Copy corrected reference"; }, 1800);
+    } catch (e) {
+      setError(`Copy failed (${e.message}). Select the corrected reference and copy it by hand.`);
+    }
+  });
+  return btn;
+}
+
+function entry(item, evItem) {
+  const missed = state.lens !== "evidence" && item.label === "VERIFIED" && evItem && evItem.label !== "VERIFIED";
+  const kids = [
+    h("div", { class: "num", "aria-hidden": "true" }, String(item.ref_id).padStart(2, "0")),
+  ];
+  const body = h("div", null,
+    h("div", { class: "top" },
+      h("span", { class: "stamp " + item.label.toLowerCase() }, item.label.replace("_", " ")),
+      h("span", { class: "verdict" }, VERDICT[item.label])),
+    h("p", { class: "raw" }, annotate(item.raw, item)),
+    missed && h("p", { class: "callout" }, h("b", null, "Passed here, flagged by CiteProof. "),
+      evItem.reasons.map((c) => REASONS[c]).join(" ")),
+    h("ul", { class: "why" }, item.reasons.map((c) => h("li", null, REASONS[c] || c, h("code", null, c)))),
+    fieldGrid(item),
+    item.best && h("p", { class: "record" }, "Closest record: ", describe(item.best), " ",
+      item.best.url && /^https?:\/\//i.test(item.best.url) &&
+        h("a", { href: item.best.url, target: "_blank", rel: "noopener noreferrer" }, item.best.doi ? "doi:" + item.best.doi : "open record")),
+    item.suggested && h("div", { class: "fixbox" }, h("div", { class: "label" }, "Corrected reference"), h("p", null, item.suggested), copyButton(item.suggested)),
+  );
+  kids.push(body);
+  return h("article", { class: "entry" }, kids);
+}
+
+function renderLens() {
+  const holder = $("lens");
+  holder.replaceChildren(...LENSES.map((l) => h("button", {
+    type: "button", "aria-pressed": String(l.key === state.lens),
+    onclick: () => { state.lens = l.key; renderAll(); },
+  }, l.label)));
+  $("lensnote").textContent = LENSES.find((l) => l.key === state.lens).note;
+}
+
+function renderLedger() {
+  const rep = state.reports[state.lens], s = rep.summary, ev = state.reports.evidence;
+  const seg = (cls, n) => n > 0 && h("span", { class: "seg " + cls, style: `flex:${n}` });
+  const missedN = state.lens === "evidence" ? 0 : rep.items.filter((it, i) => it.label === "VERIFIED" && ev.items[i].label !== "VERIFIED").length;
+  $("ledger").replaceChildren(h("div", { class: "ledger" },
+    h("div", { class: "bar", role: "img", "aria-label": `${s.verified} verified, ${s.mismatch} mismatch, ${s.not_found} not found` },
+      seg("verified", s.verified), seg("mismatch", s.mismatch), seg("not_found", s.not_found)),
+    h("div", { class: "counts" },
+      h("span", null, h("b", null, s.verified), " verified"),
+      h("span", null, h("b", null, s.mismatch), " mismatch"),
+      h("span", null, h("b", null, s.not_found), " not found")),
+    missedN > 0 && h("p", { class: "missed" }, `${missedN} of ${s.total} pass this checker but fail CiteProof.`),
+    h("div", { class: "meta" }, `${s.http_requests} live requests` + (state.reports.extracted !== undefined ? ` \u00b7 ${state.reports.extracted} references extracted from the file` : ""))));
+}
+
+function renderAll() {
+  renderLens();
+  renderLedger();
+  const items = state.reports[state.lens].items, ev = state.reports.evidence.items;
+  $("entries").replaceChildren(...items.map((it, i) => entry(it, ev[i])));
+}
+
+function showSkeleton() {
+  $("results").hidden = false;
+  $("lensbar").hidden = true;
+  $("ledger").replaceChildren();
+  $("entries").replaceChildren(...[0, 1, 2].map(() => h("div", null, h("div", { class: "skeleton", style: "width:30%" }), h("div", { class: "skeleton" }), h("div", { class: "skeleton", style: "width:72%" }))));
+}
+
+function setFile(file) {
+  state.file = file;
+  $("chip").hidden = !file;
+  $("chipname").textContent = file ? file.name : "";
+  $("input").disabled = !!file;
+}
+
+async function run() {
+  setError("");
+  const text = $("input").value.trim();
+  if (!state.file && !text) { setError("Paste a reference or add a file first."); return; }
+  $("run").disabled = true;
+  $("run").textContent = "Checking\u2026";
+  showSkeleton();
+  try {
+    let response;
+    if (state.file) {
+      const form = new FormData();
+      form.append("file", state.file);
+      form.append("mode", "evidence");
+      form.append("compare", "true");
+      response = await fetch("/api/check-file", { method: "POST", body: form });
+    } else {
+      response = await fetch("/api/check", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, mode: "evidence", compare: true }),
+      });
+    }
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || `HTTP ${response.status}`);
+    state.reports = payload;
+    state.lens = "evidence";
+    $("lensbar").hidden = false;
+    renderAll();
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    $("results").scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
+  } catch (e) {
+    $("results").hidden = true;
+    setError(`Check failed: ${e.message}`);
+  } finally {
+    $("run").disabled = false;
+    $("run").textContent = "Audit references";
+  }
+}
+
+document.querySelectorAll("[data-ex]").forEach((b) => b.addEventListener("click", () => {
+  setFile(null);
+  $("file").value = "";
+  $("input").value = EXAMPLES[+b.dataset.ex];
+  $("input").focus();
+}));
+$("pick").addEventListener("click", () => $("file").click());
+$("unpick").addEventListener("click", () => { $("file").value = ""; setFile(null); });
+$("file").addEventListener("change", (e) => { if (e.target.files[0]) setFile(e.target.files[0]); });
+$("run").addEventListener("click", run);
+$("input").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) run(); });
+$("input").addEventListener("input", () => {
+  const n = $("input").value.trim().length;
+  $("count").textContent = n ? `${n} characters` : "";
+});
+
+const sheet = $("sheet");
+sheet.addEventListener("dragover", (e) => { e.preventDefault(); sheet.classList.add("drag"); });
+sheet.addEventListener("dragleave", () => sheet.classList.remove("drag"));
+sheet.addEventListener("drop", (e) => {
+  e.preventDefault();
+  sheet.classList.remove("drag");
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  if (!/\.(pdf|txt|md)$/i.test(f.name)) { setError("Drop a .pdf, .txt or .md file."); return; }
+  setError("");
+  setFile(f);
+});
+</script>
+</body>
+</html>
