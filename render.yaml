@@ -1,0 +1,26 @@
+# @exports: Render blueprint for the hosted demo (Docker web service)
+# @imports: Dockerfile
+# @env: CITEPROOF_MAILTO
+# @env: CITEPROOF_RATE
+# @env: CITEPROOF_TIMEOUT
+# @env: CITEPROOF_CACHE
+# @env: CITEPROOF_OPENALEX
+# @schema: CITEPROOF_MAILTO is set in the Render dashboard (sync: false); PORT=8000 tells Render which port the Dockerfile binds
+services:
+  - type: web
+    name: citeproof
+    runtime: docker
+    plan: free
+    envVars:
+      - key: CITEPROOF_MAILTO
+        sync: false
+      - key: CITEPROOF_RATE
+        value: "3"
+      - key: CITEPROOF_TIMEOUT
+        value: "15"
+      - key: CITEPROOF_CACHE
+        value: "0"
+      - key: CITEPROOF_OPENALEX
+        value: "1"
+      - key: PORT
+        value: "8000"
